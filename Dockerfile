@@ -5,40 +5,25 @@ RUN apt-get update && apt-get -y install git build-essential m4 llvm libclang-de
 
 WORKDIR /zenotta
 
-COPY Cargo.toml Cargo.lock ./
-
-# Ideally we should build our dependancies first so they will cache
-# This is quite an active topic atm:
-# https://github.com/rust-lang/cargo/issues/2644
-# https://hackmd.io/jgkoQ24YRW6i0xWd73S64A?view#Current-workarounds
-
-# Copy the source so we can build in the container
-COPY ./src ./src
-
-# Copy settings as we will be removing the source
-COPY ./src/bin/node_settings_local_raft_1.toml node-settings.toml
-
 # Clone dependancies
-RUN git clone https://github.com/Zenotta/keccak-prime.git /keccak-prime && git clone -b develop https://github.com/Zenotta/naom.git /naom
+RUN git clone https://github.com/Zenotta/keccak-prime.git /keccak-prime && git clone -b develop https://github.com/Zenotta/naom.git /naom && git clone -b develop https://github.com/Zenotta/ZNP.git ./
 
 # Build for release
 RUN cargo build --release
 
-CMD ["node miner --config=/zenotta/node-settings.toml"]
+# Copy config as we're removing src
+RUN cp ./src/bin/initial_block.json ./src/bin/tls_certificates.json ./src/bin/api_config.json /etc/
+RUN cp ./src/bin/node_settings_local_raft_1.toml /etc/node_settings.toml
 
 # Remove src
-#RUN rm -Rvf src
+RUN rm -Rvf src
     
 # Use a multi-stage build and a distroless image for less attack vectors and a small image
-# At the time of testing its about 75MB
-# FROM gcr.io/distroless/cc-debian11
+FROM gcr.io/distroless/cc-debian11
 
-# COPY --from=build /zenotta/target/release/node /usr/local/bin/
-# COPY --from=build /zenotta/node-settings.toml /etc/zenotta.toml
+COPY --from=build /zenotta/target/release/node /usr/local/bin/
+COPY --from=build /etc/node_settings.toml /etc/initial_block.json /etc/tls_certificates.json /etc/api_config.json /etc/
 
-# COPY ./src/bin/initial_block.json ./src/bin/tls_certificates.json ./src/bin/api_config.json /etc/
+ENV RUST_LOG=warp
 
-# ENV RUST_LOG=warp
-
-# # Override the CMD to start different NodeTypes
-# CMD ["node compute --config=/etc/zenotta.toml --tls_config=/etc/tls_certificates.json --initial_block_config=/etc/initial_block.json --api_config=/etc/api_config.json"]
+CMD ["node miner --config=/etc/node_settings.toml --tls_config=/etc/tls_certificates.json --initial_block_config=/etc/initial_block.json --api_config=/etc/api_config.json"]
