@@ -34,3 +34,28 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  packer_build_iso:
+    name: Run Packer to build bare metal miner iso
+    runs-on: ubuntu-latest
+    steps:
+    
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup `packer`
+        uses: hashicorp/setup-packer@main
+        id: setup
+        with:
+          version: ${{ env.PRODUCT_VERSION }}
+
+      - name: Run `packer init`
+        id: init
+        run: "packer init ./miner-iso.pkr.hcl"
+
+      - name: Run `packer validate`
+        id: validate
+        run: "packer validate ./miner-iso.pkr.hcl"
+
+      - name: Build Artifact
+        run: packer build -color=false -on-error=abort ./miner-iso.pkr.hcl

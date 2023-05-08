@@ -26,4 +26,4 @@ COPY --from=build /etc/node_settings.toml /etc/initial_block.json /etc/tls_certi
 
 ENV RUST_LOG=warp
 
-CMD ["node miner --config=/etc/node_settings.toml --tls_config=/etc/tls_certificates.json --initial_block_config=/etc/initial_block.json --api_config=/etc/api_config.json"]
+CMD ["node", "miner", "--config=/etc/node_settings.toml", "--tls_config=/etc/tls_certificates.json", "--initial_block_config=/etc/initial_block.json", "--api_config=/etc/api_config.json"]
