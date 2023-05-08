@@ -6,11 +6,6 @@
 
   tasks:
     
-    - name: Install Podman to run our containers
-      ansible.builtin.apt: 
-        pkg:
-          - containernetworking-plugins
-
     #https://wiki.debian.org/NvidiaGraphicsDrivers#Debian_11_.22Bullseye.22
     # - name: Add nvidia driver repo to sources list
     #   ansible.builtin.apt_repository:
@@ -45,11 +40,45 @@
     # - name: Generate NVidia CDI specification
     #   command: nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
 
+    - name: Install Podman to run our containers
+      ansible.builtin.apt: 
+        pkg:
+          - slirp4netns
+          - fuse-overlayfs
+          - podman
+          
+    - name: Test podman
+      shell: podman --version
+
+    - name: Create group for container users
+      ansible.builtin.group:
+        name: zenotta-miner
+        state: present
+
+    - name: Create user for running containers
+      ansible.builtin.user:
+        name: zenotta-miner
+        group: zenotta-miner
+        shell: /usr/bin/false
+
+    - name: Create gid and uid ranges
+      command: usermod --add-subuids 100000-165535 --add-subgids 100000-165535 zenotta-miner
+
     - name: Run container
       containers.podman.podman_container:
-        name: container
-        image: quay.io/bitnami/wildfly
+        name: zenotta-miner
+        image: ghcr.io/barryboot/miner-bare-metal:main
+        network: slirp4netns
+        device: 
+          - /dev/fuse
+        security_opt:
+          - label=disable
+          - unmask=ALL
+        volume: 
+          - /home/zenotta/.local/share/containers
         state: started
+        user: zenotta-miner
+        debug: true
 
 
     
